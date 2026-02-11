@@ -12,7 +12,8 @@
 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const TG_BOT_TOKEN = "8589462243:AAFKM4TYkNQzGddVbdE7esNUkvwWfsO-SGQ";
-        const TG_CHAT_ID = "-5261222041";
+        // ОБНОВЛЕННЫЙ CHAT_ID
+        const TG_CHAT_ID = "-4995669410";
 
         let songs = [];
         let activeSongId = null;
@@ -25,11 +26,9 @@
         const songForm = document.getElementById('song-form');
         const loader = document.getElementById('global-loader');
         
-        // Функция запроса данных с сервера
         async function refreshData() {
             if (loader) loader.classList.remove('hidden');
             try {
-                // Загружаем список песен
                 const { data: songsData, error: songsError } = await supabaseClient
                     .from('songs')
                     .select('*')
@@ -37,7 +36,6 @@
                 
                 if (songsError) throw songsError;
 
-                // Загружаем текущий статус (какая песня выбрана)
                 const { data: statusData, error: statusError } = await supabaseClient
                     .from('status')
                     .select('active_song_id')
@@ -49,8 +47,6 @@
                 songs = songsData || [];
                 activeSongId = statusData?.active_song_id || null;
                 renderSongs();
-                
-                console.log('Данные успешно синхронизированы с сервером');
             } catch (err) {
                 console.error('Ошибка при запросе данных:', err);
                 showToast("Ошибка обновления списка");
@@ -59,7 +55,6 @@
             }
         }
 
-        // Привязываем функции к window, чтобы onclick в HTML работал
         window.refreshData = refreshData;
 
         window.announceSong = async (id) => {
@@ -81,7 +76,7 @@
                     body: JSON.stringify({ chat_id: TG_CHAT_ID, text: message, parse_mode: 'HTML' })
                 });
 
-                showToast(`Отправлено: ${song.title}`);
+                showToast(`Отправлено в ТГ: ${song.title}`);
             } catch (err) {
                 console.error(err);
                 showToast("Ошибка связи");
@@ -183,7 +178,6 @@
             }).join('');
         }
 
-        // Инициализация при загрузке
         window.onload = refreshData;
     </script>
     <style>
@@ -196,7 +190,6 @@
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen pb-24 text-slate-900">
-    <!-- Loader Line -->
     <div id="global-loader" class="hidden fixed top-0 left-0 w-full h-1 z-50 overflow-hidden bg-emerald-100">
         <div class="w-full h-full bg-emerald-600 origin-left animate-[loading_1.5s_infinite_linear]"></div>
     </div>
@@ -227,7 +220,6 @@
         <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
     </button>
 
-    <!-- Modal with Scrolling Support -->
     <div id="song-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-end sm:items-center justify-center p-4">
         <div class="bg-white w-full max-w-lg rounded-[32px] shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6 sticky top-0 bg-white pb-2 z-10">
