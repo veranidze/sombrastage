@@ -23,14 +23,11 @@
         const toastText = document.getElementById('toast-text');
         const songModal = document.getElementById('song-modal');
         const songForm = document.getElementById('song-form');
+        const loader = document.getElementById('global-loader');
         
-        // Инициализация: загружаем данные только один раз при старте
-        async function init() {
-            await refreshData();
-        }
-
         // Функция запроса данных с сервера
         async function refreshData() {
+            if (loader) loader.classList.remove('hidden');
             try {
                 // Загружаем список песен
                 const { data: songsData, error: songsError } = await supabaseClient
@@ -57,8 +54,13 @@
             } catch (err) {
                 console.error('Ошибка при запросе данных:', err);
                 showToast("Ошибка обновления списка");
+            } finally {
+                if (loader) loader.classList.add('hidden');
             }
         }
+
+        // Привязываем функции к window, чтобы onclick в HTML работал
+        window.refreshData = refreshData;
 
         window.announceSong = async (id) => {
             if (isSending) return;
@@ -67,14 +69,11 @@
             isSending = true;
             
             try {
-                // Оптимистично меняем активную песню в UI
                 activeSongId = id;
                 renderSongs();
 
-                // Обновляем в базе
                 await supabaseClient.from('status').upsert({ id: 1, active_song_id: id, updated_at: new Date() });
 
-                // Отправляем в Telegram
                 const message = `<b>СЛЕДУЮЩАЯ ПЕСНЯ:</b>\n🎵 <b>${song.title.toUpperCase()}</b>`;
                 await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
                     method: 'POST',
@@ -119,7 +118,6 @@
                 const { error } = await supabaseClient.from('songs').delete().eq('id', id);
                 if (!error) {
                     closeModal();
-                    // Запрос на сервер происходит ТОЛЬКО ПОСЛЕ удаления
                     await refreshData(); 
                 }
             }
@@ -142,7 +140,6 @@
 
             if (!error) {
                 closeModal();
-                // Запрос на сервер происходит ТОЛЬКО ПОСЛЕ создания/правки
                 await refreshData();
             }
         };
@@ -186,14 +183,24 @@
             }).join('');
         }
 
-        window.onload = init;
+        // Инициализация при загрузке
+        window.onload = refreshData;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        @keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen pb-24 text-slate-900">
+    <!-- Loader Line -->
+    <div id="global-loader" class="hidden fixed top-0 left-0 w-full h-1 z-50 overflow-hidden bg-emerald-100">
+        <div class="w-full h-full bg-emerald-600 origin-left animate-[loading_1.5s_infinite_linear]"></div>
+    </div>
+
     <header class="bg-white/80 backdrop-blur-md border-b sticky top-0 z-20 px-4 py-4 flex justify-between items-center">
         <div class="flex items-center gap-3">
             <div class="bg-emerald-600 p-2 rounded-xl text-white">
@@ -208,11 +215,11 @@
     </header>
 
     <main class="max-w-xl mx-auto p-4">
-        <div id="status-toast" class="hidden mb-6 bg-emerald-600 text-white p-5 rounded-2xl shadow-xl flex items-center justify-between animate-in">
+        <div id="status-toast" class="hidden mb-6 bg-emerald-600 text-white p-5 rounded-2xl shadow-xl flex items-center justify-between">
             <span id="toast-text" class="font-bold text-xs uppercase tracking-wider"></span>
         </div>
         <div id="song-list">
-            <p class="text-center text-slate-400 text-xs py-10 uppercase font-bold tracking-widest">Загрузка...</p>
+            <p class="text-center text-slate-400 text-xs py-10 uppercase font-bold tracking-widest animate-pulse">Загрузка...</p>
         </div>
     </main>
 
@@ -224,7 +231,7 @@
         <div class="bg-white w-full max-w-lg rounded-[32px] shadow-2xl p-8">
             <div class="flex justify-between items-center mb-6">
                 <h2 id="modal-title" class="text-2xl font-black italic text-emerald-600">Песня</h2>
-                <button id="delete-btn" onclick="deleteCurrentSong()" class="p-2 text-red-500 hover:bg-red-50 rounded-xl">
+                <button id="delete-btn" onclick="deleteCurrentSong()" class="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                 </button>
             </div>
@@ -234,7 +241,7 @@
                 <textarea id="input-lyrics" placeholder="Текст и аккорды" class="w-full bg-slate-50 rounded-2xl px-5 py-3 h-48 font-mono text-sm outline-none border-2 border-transparent focus:border-emerald-500 transition-all"></textarea>
                 <input type="number" id="input-order" placeholder="Порядок (номер)" class="w-full bg-slate-50 rounded-2xl px-5 py-3 font-bold outline-none border-2 border-transparent focus:border-emerald-500 transition-all">
                 <div class="flex gap-3 pt-4">
-                    <button type="button" onclick="closeModal()" class="flex-1 py-4 font-bold text-slate-500">Отмена</button>
+                    <button type="button" onclick="closeModal()" class="flex-1 py-4 font-bold text-slate-500 hover:bg-slate-50 rounded-2xl">Отмена</button>
                     <button type="submit" class="flex-[2] py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg">Сохранить</button>
                 </div>
             </form>
