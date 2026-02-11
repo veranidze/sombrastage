@@ -47,7 +47,7 @@
             if (error) {
                 console.error('Ошибка загрузки песен:', error);
             } else {
-                songs = data;
+                songs = data || [];
                 renderSongs();
             }
         }
@@ -68,22 +68,39 @@
 
         // Настройка Realtime обновлений
         function setupRealtime() {
-            // Подписка на изменения в таблице песен
-            supabaseClient
-                .channel('public:songs')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'songs' }, () => {
-                    fetchSongs();
-                })
-                .subscribe();
+            // Очистка старых подписок перед созданием новой
+            supabaseClient.removeAllChannels();
 
-            // Подписка на изменения в таблице статуса
+            // Подписка на ВСЕ изменения в таблице песен (INSERT, UPDATE, DELETE)
             supabaseClient
-                .channel('public:status')
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'status', filter: 'id=eq.1' }, payload => {
-                    activeSongId = payload.new.active_song_id;
-                    renderSongs();
-                })
-                .subscribe();
+                .channel('schema-db-changes')
+                .on('postgres_changes', 
+                    { 
+                        event: '*', 
+                        schema: 'public', 
+                        table: 'songs' 
+                    }, 
+                    (payload) => {
+                        console.log('Изменение в песнях:', payload);
+                        fetchSongs(); // Перезагружаем список при любом событии
+                    }
+                )
+                .on('postgres_changes', 
+                    { 
+                        event: 'UPDATE', 
+                        schema: 'public', 
+                        table: 'status', 
+                        filter: 'id=eq.1' 
+                    }, 
+                    payload => {
+                        console.log('Изменение статуса:', payload);
+                        activeSongId = payload.new.active_song_id;
+                        renderSongs();
+                    }
+                )
+                .subscribe((status) => {
+                    console.log('Статус подписки Supabase:', status);
+                });
         }
 
         // Функции действий
@@ -119,15 +136,15 @@
 
         window.toggleExpand = (id) => {
             const el = document.getElementById(`lyrics-${id}`);
-            el.classList.toggle('hidden');
+            if (el) el.classList.toggle('hidden');
         };
 
         window.openEditModal = (id = null) => {
-            const song = id ? songs.find(s => s.id === id) : { title: '', lyrics: '', order: songs.length + 1 };
+            const song = id ? songs.find(s => s.id === id) : { title: '', lyrics: '', order: (songs.length > 0 ? Math.max(...songs.map(s => s.order)) + 1 : 1) };
             document.getElementById('modal-title').innerText = id ? 'Правка песни' : 'Новая песня';
             document.getElementById('song-id').value = id || '';
             document.getElementById('input-title').value = song.title;
-            document.getElementById('input-lyrics').value = song.lyrics;
+            document.getElementById('input-lyrics').value = song.lyrics || '';
             document.getElementById('input-order').value = song.order;
             document.getElementById('delete-btn').classList.toggle('hidden', !id);
             songModal.classList.remove('hidden');
@@ -143,7 +160,12 @@
             const id = document.getElementById('song-id').value;
             if (id && confirm('Удалить песню навсегда?')) {
                 const { error } = await supabaseClient.from('songs').delete().eq('id', id);
-                if (!error) closeModal();
+                if (error) {
+                    console.error("Ошибка удаления:", error);
+                    alert("Ошибка при удалении. Проверьте RLS политики.");
+                } else {
+                    closeModal();
+                }
             }
         };
 
@@ -165,8 +187,12 @@
                 error = res.error;
             }
 
-            if (!error) closeModal();
-            else console.error("Ошибка сохранения:", error);
+            if (!error) {
+                closeModal();
+            } else {
+                console.error("Ошибка сохранения:", error);
+                alert("Ошибка сохранения. Проверьте права доступа в Supabase.");
+            }
         };
 
         function showToast(text) {
@@ -185,7 +211,7 @@
             }
 
             songListContainer.innerHTML = songs.map(song => `
-                <div class="transition-all duration-300 rounded-3xl overflow-hidden border-2 ${activeSongId == song.id ? 'bg-white border-emerald-500 shadow-xl' : 'bg-white border-transparent shadow-sm'} mb-4">
+                <div class="transition-all duration-300 rounded-3xl overflow-hidden border-2 ${activeSongId == song.id ? 'bg-white border-emerald-500 shadow-xl scale-[1.02]' : 'bg-white border-transparent shadow-sm'} mb-4">
                     <div class="p-5 flex items-center justify-between">
                         <div class="flex-1 cursor-pointer flex items-center gap-4" onclick="toggleExpand('${song.id}')">
                             <span class="text-sm font-black w-6 ${activeSongId == song.id ? 'text-emerald-600' : 'text-slate-300'}">
@@ -204,7 +230,7 @@
                     <div id="lyrics-${song.id}" class="hidden px-6 pb-6 border-t border-slate-50 bg-slate-50/30">
                         <div class="flex justify-between items-center py-3">
                             <span class="text-[10px] font-black uppercase text-slate-400">Текст / Аккорды</span>
-                            <button onclick="openEditModal('${song.id}')" class="text-[10px] font-black uppercase text-emerald-600 px-2 py-1 bg-emerald-50 rounded">Правка</button>
+                            <button onclick="openEditModal('${song.id}')" class="text-[10px] font-black uppercase text-emerald-600 px-2 py-1 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors">Правка</button>
                         </div>
                         <pre class="whitespace-pre-wrap font-mono text-sm text-slate-700 bg-white p-4 rounded-xl border border-slate-100">${song.lyrics || 'Нет текста'}</pre>
                     </div>
@@ -217,6 +243,8 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; }
+        .animate-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen pb-24 text-slate-900">
@@ -259,7 +287,7 @@
 
     <!-- Модальное окно -->
     <div id="song-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-end sm:items-center justify-center p-4">
-        <div class="bg-white w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in slide-in-from-bottom-5 duration-300">
+        <div class="bg-white w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in">
             <div class="flex justify-between items-center mb-6">
                 <h2 id="modal-title" class="text-2xl font-black tracking-tight uppercase italic text-emerald-600">Песня</h2>
                 <button id="delete-btn" onclick="deleteCurrentSong()" class="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors">
