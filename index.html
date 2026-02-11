@@ -227,9 +227,10 @@
         <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
     </button>
 
+    <!-- Modal with Scrolling Support -->
     <div id="song-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-end sm:items-center justify-center p-4">
-        <div class="bg-white w-full max-w-lg rounded-[32px] shadow-2xl p-8">
-            <div class="flex justify-between items-center mb-6">
+        <div class="bg-white w-full max-w-lg rounded-[32px] shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 sticky top-0 bg-white pb-2 z-10">
                 <h2 id="modal-title" class="text-2xl font-black italic text-emerald-600">Песня</h2>
                 <button id="delete-btn" onclick="deleteCurrentSong()" class="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
@@ -237,10 +238,19 @@
             </div>
             <form id="song-form" class="space-y-4">
                 <input type="hidden" id="song-id">
-                <input type="text" id="input-title" placeholder="Название" required class="w-full bg-slate-50 rounded-2xl px-5 py-3 font-bold outline-none border-2 border-transparent focus:border-emerald-500 transition-all">
-                <textarea id="input-lyrics" placeholder="Текст и аккорды" class="w-full bg-slate-50 rounded-2xl px-5 py-3 h-48 font-mono text-sm outline-none border-2 border-transparent focus:border-emerald-500 transition-all"></textarea>
-                <input type="number" id="input-order" placeholder="Порядок (номер)" class="w-full bg-slate-50 rounded-2xl px-5 py-3 font-bold outline-none border-2 border-transparent focus:border-emerald-500 transition-all">
-                <div class="flex gap-3 pt-4">
+                <div>
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-1 ml-2">Название</label>
+                    <input type="text" id="input-title" placeholder="Название" required class="w-full bg-slate-50 rounded-2xl px-5 py-3 font-bold outline-none border-2 border-transparent focus:border-emerald-500 transition-all">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-1 ml-2">Текст и аккорды</label>
+                    <textarea id="input-lyrics" placeholder="Текст и аккорды" class="w-full bg-slate-50 rounded-2xl px-5 py-3 h-48 font-mono text-sm outline-none border-2 border-transparent focus:border-emerald-500 transition-all"></textarea>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-1 ml-2">Порядок</label>
+                    <input type="number" id="input-order" placeholder="Порядок (номер)" class="w-full bg-slate-50 rounded-2xl px-5 py-3 font-bold outline-none border-2 border-transparent focus:border-emerald-500 transition-all">
+                </div>
+                <div class="flex gap-3 pt-4 sticky bottom-0 bg-white py-2">
                     <button type="button" onclick="closeModal()" class="flex-1 py-4 font-bold text-slate-500 hover:bg-slate-50 rounded-2xl">Отмена</button>
                     <button type="submit" class="flex-[2] py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg">Сохранить</button>
                 </div>
